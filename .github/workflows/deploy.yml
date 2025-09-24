@@ -18,9 +18,10 @@ jobs:
           key: ${{ secrets.UBUNTU_PRIVATE_KEY }}
           script: |
             # -----------------------------
-            # 1. Install prerequisites if missing
+            # 1. Update apt & install prerequisites
             # -----------------------------
-            command -v curl >/dev/null 2>&1 || sudo apt update && sudo apt install -y curl git build-essential
+            sudo apt-get update -y --fix-missing
+            sudo apt-get install -y curl git build-essential
 
             # -----------------------------
             # 2. Install NVM if missing
@@ -38,6 +39,7 @@ jobs:
             if ! command -v node >/dev/null 2>&1 || [ "$(node -v | cut -d v -f2 | cut -d. -f1)" -ne 20 ]; then
               echo "Installing Node 20..."
               nvm install 20
+              nvm alias default 20
               nvm use 20
             fi
 
@@ -48,15 +50,17 @@ jobs:
             command -v pm2 >/dev/null 2>&1 || npm install -g pm2
 
             # -----------------------------
-            # 5. Pull latest code
+            # 5. Pull latest code (clean clone each time)
             # -----------------------------
-            ls
-            cd devops-deploy || exit
-            if [ ! -d ".git" ]; then
-              git clone https://github.com/Tejas-pr/devops-deploy.git .
+            APP_DIR="$HOME/devops-deploy"
+            if [ ! -d "$APP_DIR" ]; then
+              git clone https://github.com/Tejas-pr/devops-deploy.git "$APP_DIR"
             else
+              cd "$APP_DIR"
+              git reset --hard
               git pull origin main
             fi
+            cd "$APP_DIR"
 
             # -----------------------------
             # 6. Install dependencies, build and restart
