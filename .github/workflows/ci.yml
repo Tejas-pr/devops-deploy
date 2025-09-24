@@ -1,0 +1,33 @@
+name: CI - Pull Request Checks
+
+on:
+  pull_request:
+    branches:
+      - staging
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout the code
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # 2. Set up Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      # 3. Install dependencies
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --auto-approve-builds
+
+      # 4. Run lint
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Build
+        run: pnpm run build --if-present
