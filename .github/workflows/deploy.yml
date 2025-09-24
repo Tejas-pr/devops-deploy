@@ -17,32 +17,49 @@ jobs:
           username: ubuntu
           key: ${{ secrets.UBUNTU_PRIVATE_KEY }}
           script: |
-            # 1. Update and install prerequisites
-            sudo apt update
-            sudo apt install -y curl git build-essential
+            # -----------------------------
+            # 1. Install prerequisites if missing
+            # -----------------------------
+            command -v curl >/dev/null 2>&1 || sudo apt update && sudo apt install -y curl git build-essential
 
-            # 2. Install nvm
+            # -----------------------------
+            # 2. Install NVM if missing
+            # -----------------------------
             if [ ! -d "$HOME/.nvm" ]; then
+              echo "Installing NVM..."
               curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.5/install.sh | bash
             fi
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 
-            # 3. Install Node 20 via nvm
-            nvm install 20
-            nvm use 20
-
-            # 4. Install global tools pnpm and pm2
-            npm install -g pnpm pm2
-
-            # 5. Clone repo if not exists, else pull latest
-            if [ ! -d "/home/ubuntu/devops-deploy" ]; then
-              git clone https://github.com/Tejas-pr/devops-deploy.git /home/ubuntu/devops-deploy
+            # -----------------------------
+            # 3. Install Node 20 if missing
+            # -----------------------------
+            if ! command -v node >/dev/null 2>&1 || [ "$(node -v | cut -d v -f2 | cut -d. -f1)" -ne 20 ]; then
+              echo "Installing Node 20..."
+              nvm install 20
+              nvm use 20
             fi
-            cd /home/ubuntu/devops-deploy
-            git pull origin main
 
-            # 6. Install dependencies, build, and run app
-            pnpm install
+            # -----------------------------
+            # 4. Install PNPM and PM2 if missing
+            # -----------------------------
+            command -v pnpm >/dev/null 2>&1 || npm install -g pnpm
+            command -v pm2 >/dev/null 2>&1 || npm install -g pm2
+
+            # -----------------------------
+            # 5. Pull latest code
+            # -----------------------------
+            cd /home/ubuntu/devops-deploy || exit
+            if [ ! -d ".git" ]; then
+              git clone https://github.com/Tejas-pr/devops-deploy.git .
+            else
+              git pull origin main
+            fi
+
+            # -----------------------------
+            # 6. Install dependencies, build and restart
+            # -----------------------------
+            pnpm install --frozen-lockfile
             pnpm run build
             pm2 restart vite-app || pm2 start "pnpm run preview -- --host 0.0.0.0 --port 4173" --name vite-app
