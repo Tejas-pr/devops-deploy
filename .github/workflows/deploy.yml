@@ -1,0 +1,24 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches:
+      - main
+        
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Deploy to EC2
+      uses: appleboy/ssh-action@v0.1.7
+      with:
+        host: ${{ secrets.UBUNTU_HOSTNAME }}
+        username: ubuntu
+        key: ${{ secrets.UBUNTU_PRIVATE_KEY }}
+        script: |
+          cd /home/ubuntu/devops-deploy
+          git pull origin main
+          pnpm install
+          pnpm run build
+          pm2 restart vite-app || pm2 start "pnpm run preview -- --host 0.0.0.0 --port 4173" --name vite-app
